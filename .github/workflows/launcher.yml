@@ -1,0 +1,34 @@
+name: build-launcher
+on:
+  push:
+    paths: ['launcher/**', 'launcher_dist/**', '.github/workflows/launcher.yml']
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust toolchain
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup target add i686-pc-windows-msvc
+      - name: Build IME overlay (32-bit DLL)
+        working-directory: launcher/ime_overlay
+        run: cargo build --release --target i686-pc-windows-msvc
+      - name: Build launcher
+        working-directory: launcher
+        run: cargo build --release --bin launcher
+      - name: Package
+        shell: pwsh
+        run: |
+          $out = "pkg"
+          New-Item -ItemType Directory -Force $out | Out-Null
+          Copy-Item launcher/target/release/launcher.exe "$out/나만의리니지.exe"
+          Copy-Item launcher_dist/list.txt, launcher_dist/config.ini $out
+          Copy-Item launcher_dist/*.flag $out
+          Copy-Item -Recurse launcher_dist/skins "$out/skins"
+          Copy-Item launcher_dist/README_KO.txt "$out/사용법.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MyLineage_Launcher
+          path: pkg
