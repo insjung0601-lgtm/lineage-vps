@@ -6254,8 +6254,8 @@ public class C_NPCAction extends ClientBasePacket {
 
 	/** 성문업데이트* */
 	private void openCloseGate(L1PcInstance pc, int keeperId, boolean isOpen) {
-		// [solo] GM(또는 설정 OpenCastleGates=1이면 누구나)은 성 소유와 관계없이 성문 관리인이 문을 열고 닫아줌
-		if (pc.isGm() || solo.SoloConfig.openCastleGates()) {
+		// [solo] GM은 성 소유와 관계없이 성문 관리인이 문을 열고 닫아줌 (그 외에는 원래대로 성 소유 혈맹만)
+		if (pc.isGm()) {
 			for (L1DoorInstance door : DoorSpawnTable.getInstance().getDoorList()) {
 				if (door.getKeeperId() == keeperId) {
 					if (isOpen) {

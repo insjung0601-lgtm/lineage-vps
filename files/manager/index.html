@@ -107,6 +107,15 @@ tr.sel{background:#2b241d}tbody tr{cursor:pointer}
   </div>
 </section>
 
+<section id="t-siege">
+  <div class="card"><h2>공성전</h2>
+    <p class="muted">성 주인 혈맹의 수호기사·군주와 GM만 성문 관리인에게 성문을 열게 할 수 있습니다. GM은 성문을 직접 클릭해도 열립니다.<br>
+    공성으로 성을 차지하려면: <b>50레벨 이상 군주</b>가 혈맹을 만들고(혈맹주) → 공성 시작 → 성문·수호탑을 부수고 → 변신 해제 상태로 <b>왕관</b>을 클릭하면 됩니다. 성 주인이 NPC일 때는 선포가 필요 없습니다.</p>
+    <table><thead><tr><th>성</th><th>주인 혈맹</th><th>상태</th><th>공성 시작</th><th>성 주인 지정</th></tr></thead><tbody id="castles"></tbody></table>
+    <div class="row" style="margin-top:10px"><button class="b" onclick="loadSiege()">새로고침</button><span class="muted">공성전 진행 시간은 [설정] 탭에서 바꿉니다.</span></div>
+  </div>
+</section>
+
 <section id="t-set">
   <div class="card"><h2>배율 · 보스 주기</h2>
     <div id="rates" class="grid"></div>
@@ -177,7 +186,7 @@ tr.sel{background:#2b241d}tbody tr{cursor:pointer}
 <div id="toast"></div>
 
 <script>
-const TABS=[['home','홈'],['chars','캐릭터'],['items','아이템'],['npc','몬스터·보스'],['set','설정'],['bak','백업']];
+const TABS=[['home','홈'],['chars','캐릭터'],['items','아이템'],['npc','몬스터·보스'],['siege','공성전'],['set','설정'],['bak','백업']];
 let CUR=null, CHARS=[];
 const $=id=>document.getElementById(id), v=id=>$(id).value;
 function toast(m,err){const t=$('toast');t.textContent=m;t.className=err?'err':'';t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',4000)}
@@ -190,7 +199,7 @@ async function login(){try{await call('login',{password:v('pw')});$('login').sty
 $('pw').addEventListener('keydown',e=>{if(e.key==='Enter')login()});
 function tab(id){document.querySelectorAll('section').forEach(s=>s.classList.toggle('act',s.id==='t-'+id));
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('act',b.dataset.t===id));
-  if(id==='chars')loadChars(); if(id==='set')loadSet(); if(id==='bak')loadBak(); if(id==='items'||id==='npc')fillTargets()}
+  if(id==='chars')loadChars(); if(id==='set')loadSet(); if(id==='bak')loadBak(); if(id==='siege')loadSiege(); if(id==='items'||id==='npc')fillTargets()}
 async function status(){try{const s=await call('status');const on=s.server==='active';
   $('srv').textContent=on?'서버 실행 중':'서버 꺼짐';$('srv').className='pill '+(on?'on':'off');
   $('s-state').textContent=on?'실행 중':'꺼짐';$('s-online').textContent=s.online.length;$('s-chars').textContent=s.characters;$('s-acc').textContent=s.accounts;
@@ -217,6 +226,15 @@ async function npcs(boss){const j=await call('npcs',boss?{boss:1}:{q:v('nq')});$
 async function spawn(id){const t=v('ntarget');if(!t)return toast('접속 중인 캐릭터가 없습니다',1);await call('char_action',{name:t,action:'spawn',npc_id:id,count:v('ncount')})}
 async function loadSet(){const s=await call('settings');$('rates').innerHTML=s.rates.map(r=>`<label class="stat"><span>${r.label}</span><input data-k="${r.key}" value="${r.value}" style="width:100%;margin-top:6px"></label>`).join('');$('bossmin').value=s.boss_minutes}
 async function saveSet(){const d={boss_minutes:v('bossmin')};document.querySelectorAll('#rates input').forEach(i=>d[i.dataset.k]=i.value);await call('settings_save',d)}
+let CLANS=[];
+async function loadSiege(){const j=await call('siege');CLANS=j.clans;
+  $('castles').innerHTML=j.castles.map(c=>`<tr><td>${esc(c.name)}</td><td>${c.clan?esc(c.clan)+' <span class="muted">('+esc(c.leader)+')</span>':'<span class="muted">NPC</span>'}</td>
+  <td>${c.war?'<span class="tag on">공성 중</span>':'<span class="muted">평화</span>'}</td>
+  <td class="row">${c.war?`<button class="b red" onclick="siegeStop(${c.id})">공성 끝내기</button>`:`<input id="wm${c.id}" type="number" value="1" min="0" style="width:64px">분 후 <button class="b gold" onclick="siegeStart(${c.id})">시작</button>`}</td>
+  <td class="row"><select id="ow${c.id}"><option value="">NPC (주인 없음)</option>${CLANS.map(k=>`<option ${k.name===c.clan?'selected':''}>${esc(k.name)}</option>`).join('')}</select><button class="b" onclick="setOwner(${c.id})">지정</button></td></tr>`).join('')}
+async function siegeStart(id){await call('siege_start',{castle:id,minutes:v('wm'+id)});setTimeout(loadSiege,1500)}
+async function siegeStop(id){if(!confirm('공성전을 지금 끝낼까요?'))return;await call('siege_stop',{castle:id});setTimeout(loadSiege,1500)}
+async function setOwner(id){await call('castle_owner',{castle:id,clan:v('ow'+id)});loadSiege()}
 async function chpw(){await call('password',{new:v('newpw')});$('newpw').value=''}
 async function loadBak(){const j=await call('backups');$('baks').innerHTML=j.backups.map(b=>
   `<tr><td>${esc(b.name)}</td><td>${(b.size/1048576).toFixed(1)}MB</td><td class="row"><a class="b" style="text-decoration:none" href="/download/${encodeURIComponent(b.name)}">받기</a>

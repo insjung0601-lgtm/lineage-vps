@@ -123,14 +123,19 @@ RATE_KEYS = [('RateXp', '경험치 배율'), ('RateDropAdena', '아데나 배율
              ('EnchantChanceAccessory', '장신구 인챈트 확률 가산(%p)'), ('RateWeightLimit', '무게 한도 배율')]
 
 SOLO_KEYS = [('NpcDamageRate', '몹에게 받는 데미지 % (100=원래, 30=30%만, 0=무적) · 즉시 적용', '30'),
-             ('FullHealPotion', '토끼의 간 완전회복 (1=켜기, 0=끄기) · 즉시 적용', '1'),
-             ('OpenCastleGates', 'GM 아닌 캐릭터도 성문 열기 허용 (1=허용, 0=GM만) · 즉시 적용', '0')]
+             ('FullHealPotion', '토끼의 간 완전회복 (1=켜기, 0=끄기) · 즉시 적용', '1')]
+ALT_KEYS = [('WarTime', '공성전 진행 시간 (예: 1h, 30m) · 재시작 후 적용')]
 
 def get_settings():
     t = read_props(os.path.join(APP, 'config', 'rates.properties'))
     rates = []
     for k, label in RATE_KEYS:
         m = re.search(r'(?m)^%s\s*=\s*(\S+)' % k, t)
+        rates.append({'key': k, 'label': label, 'value': m.group(1) if m else ''})
+    ap = os.path.join(APP, 'config', 'altsettings.properties')
+    at = read_props(ap) if os.path.isfile(ap) else ''
+    for k, label in ALT_KEYS if at else []:
+        m = re.search(r'(?m)^%s\s*=\s*(\S+)' % k, at)
         rates.append({'key': k, 'label': label, 'value': m.group(1) if m else ''})
     sp = os.path.join(APP, 'config', 'solo.properties')
     st = open(sp, encoding='utf-8').read() if os.path.isfile(sp) else ''
@@ -151,6 +156,16 @@ def save_settings(data):
                 raise RuntimeError('%s 값이 숫자가 아닙니다' % k)
             t = re.sub(r'(?m)^%s\s*=.*$' % k, '%s = %s' % (k, v), t)
     write_props(path, t)
+    ap = os.path.join(APP, 'config', 'altsettings.properties')
+    at = read_props(ap) if os.path.isfile(ap) else ''
+    for k, _ in ALT_KEYS if at else []:
+        if k in data:
+            v = str(data[k]).strip()
+            if not re.fullmatch(r'\d+[dhm]', v):
+                raise RuntimeError('%s 값은 숫자+단위(d/h/m) 형식이어야 합니다 (예: 1h)' % k)
+            at = re.sub(r'(?m)^%s\s*=.*$' % k, '%s = %s' % (k, v), at)
+    if at:
+        write_props(ap, at)
     sp = os.path.join(APP, 'config', 'solo.properties')
     st = open(sp, encoding='utf-8').read() if os.path.isfile(sp) else ''
     for k, _, _ in SOLO_KEYS:
@@ -358,6 +373,44 @@ def api(path, data):
     if path == 'settings_save':
         save_settings(data)
         return {'msg': '저장했습니다. [서버 재시작]을 눌러야 적용됩니다.'}
+
+    if path == 'siege':
+        ok, body = telnet('castles')
+        if not ok:
+            raise RuntimeError('서버가 꺼져 있거나 응답이 없습니다')
+        castles = []
+        for line in body.split('\r\n'):
+            f = line.split('\t')
+            if len(f) >= 6:
+                castles.append({'id': int(f[0]), 'name': f[1], 'clan': f[2], 'leader': f[3], 'war_time': f[4], 'war': f[5] == '1'})
+        ok, body = telnet('clans')
+        clans = []
+        for line in (body.split('\r\n') if ok else []):
+            f = line.split('\t')
+            if len(f) >= 3 and f[0]:
+                clans.append({'name': f[0], 'leader': f[1], 'castle': int(f[2] or 0)})
+        return {'castles': castles, 'clans': clans}
+    if path == 'siege_start':
+        cid = int(data['castle']); mins = int(data.get('minutes', 1))
+        if mins < 0 or mins > 10080:
+            raise RuntimeError('시작 시간은 0~10080분')
+        ok, body = telnet('warstart %d %d' % (cid, mins))
+        if not ok:
+            raise RuntimeError({'already at war': '이미 공성전 중입니다'}.get(body, '시작 실패: ' + body))
+        return {'msg': ('공성전이 시작됩니다' if mins == 0 else '%d분 후 공성전이 시작됩니다' % mins) + ' (진행 시간은 [설정]의 공성전 진행 시간)'}
+    if path == 'siege_stop':
+        ok, body = telnet('warstop %d' % int(data['castle']))
+        if not ok:
+            raise RuntimeError({'not at war': '공성전 중이 아닙니다'}.get(body, '종료 실패: ' + body))
+        return {'msg': '공성전을 끝냈습니다.'}
+    if path == 'castle_owner':
+        clan = (data.get('clan') or '').strip() or '-'
+        if '\r' in clan or '\n' in clan:
+            raise RuntimeError('잘못된 혈맹 이름')
+        ok, body = telnet('castleowner %d %s' % (int(data['castle']), clan))
+        if not ok:
+            raise RuntimeError({'no clan': '그 혈맹이 없습니다', 'clan already owns another castle': '그 혈맹은 이미 다른 성을 가지고 있습니다'}.get(body, '변경 실패: ' + body))
+        return {'msg': '성 주인을 바꿨습니다.' if clan != '-' else 'NPC 소유로 되돌렸습니다.'}
 
     if path == 'backups':
         return {'backups': list_backups()}
