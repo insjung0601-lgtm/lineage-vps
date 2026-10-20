@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>나만의리니지 관리자</title>
+<style>
+:root{--bg:#14110f;--panel:#1e1a17;--line:#3a322b;--text:#efe6da;--muted:#a89a8a;--gold:#d6a74a;--red:#d0584a;--green:#5fb37a;--blue:#5a8fd0}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 "Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif}
+header{display:flex;align-items:center;gap:16px;padding:14px 20px;border-bottom:1px solid var(--line);background:#191512;position:sticky;top:0;z-index:5;flex-wrap:wrap}
+header h1{margin:0;font-size:19px;color:var(--gold);letter-spacing:.5px}
+.pill{padding:3px 10px;border-radius:99px;font-size:13px;border:1px solid var(--line)}
+.pill.on{color:var(--green);border-color:var(--green)}.pill.off{color:var(--red);border-color:var(--red)}
+nav{display:flex;gap:4px;flex-wrap:wrap;margin-left:auto}
+nav button{background:none;border:1px solid transparent;color:var(--muted);padding:6px 12px;border-radius:6px;cursor:pointer;font:inherit}
+nav button.act{color:var(--text);border-color:var(--line);background:var(--panel)}
+main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+section{display:none}section.act{display:block}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:16px}
+.card h2{margin:0 0 12px;font-size:16px;color:var(--gold)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.stat{background:#171310;border:1px solid var(--line);border-radius:8px;padding:12px}
+.stat b{display:block;font-size:22px}.stat span{color:var(--muted);font-size:13px}
+button.b{background:#2a241f;color:var(--text);border:1px solid var(--line);padding:7px 13px;border-radius:6px;cursor:pointer;font:inherit}
+button.b:hover{border-color:var(--gold)}
+button.gold{background:var(--gold);color:#1a140c;border-color:var(--gold);font-weight:600}
+button.red{border-color:var(--red);color:#f2b0a8}
+input,select{background:#120f0d;color:var(--text);border:1px solid var(--line);border-radius:6px;padding:7px 9px;font:inherit;min-width:0}
+input[type=number]{width:110px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left}
+th{color:var(--muted);font-weight:500}
+tr.sel{background:#2b241d}tbody tr{cursor:pointer}
+.tag{font-size:12px;padding:1px 7px;border-radius:4px;border:1px solid var(--line);color:var(--muted)}
+.tag.g{color:var(--gold);border-color:var(--gold)}.tag.on{color:var(--green);border-color:var(--green)}
+.muted{color:var(--muted);font-size:13px}
+.panel{position:fixed;right:0;top:0;bottom:0;width:min(440px,100%);background:#1a1613;border-left:1px solid var(--line);padding:18px;overflow:auto;transform:translateX(100%);transition:.2s;z-index:10}
+.panel.open{transform:none}
+.panel h3{margin:0 0 4px;color:var(--gold)}
+.panel .grp{border-top:1px solid var(--line);padding-top:12px;margin-top:12px}
+.panel .grp h4{margin:0 0 8px;font-size:14px;color:var(--muted);font-weight:500}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#2b241d;border:1px solid var(--gold);padding:10px 16px;border-radius:8px;display:none;z-index:20;max-width:90%}
+#toast.err{border-color:var(--red)}
+#login{max-width:320px;margin:15vh auto;text-align:center}
+#login input{width:100%;margin:12px 0;font-size:17px;text-align:center}
+@media (max-width:640px){nav{margin-left:0}th:nth-child(2),td:nth-child(2),th:nth-child(6),td:nth-child(6){display:none}}
+</style>
+</head>
+<body>
+<div id="login" style="display:none">
+  <h1 style="color:var(--gold)">나만의리니지 관리자</h1>
+  <input id="pw" type="password" placeholder="관리자 비밀번호" autofocus>
+  <button class="b gold" style="width:100%" onclick="login()">들어가기</button>
+</div>
+
+<div id="app" style="display:none">
+<header>
+  <h1>나만의리니지 관리자</h1>
+  <span id="srv" class="pill">확인 중</span>
+  <nav id="nav"></nav>
+</header>
+<main>
+
+<section id="t-home">
+  <div class="card"><h2>서버</h2>
+    <div class="grid" style="margin-bottom:14px">
+      <div class="stat"><b id="s-state">-</b><span>상태</span></div>
+      <div class="stat"><b id="s-online">-</b><span>접속 중</span></div>
+      <div class="stat"><b id="s-chars">-</b><span>캐릭터</span></div>
+      <div class="stat"><b id="s-acc">-</b><span>계정</span></div>
+    </div>
+    <div class="row">
+      <button class="b gold" onclick="srv('start')">서버 켜기</button>
+      <button class="b" onclick="srv('restart')">서버 재시작</button>
+      <button class="b red" onclick="srv('stop')">서버 끄기</button>
+    </div>
+    <p class="muted" id="s-names"></p>
+  </div>
+  <div class="card"><h2>전체 공지</h2>
+    <div class="row"><input id="notice" style="flex:1" placeholder="게임 안 모든 사람에게 보낼 문구"><button class="b" onclick="notice()">보내기</button></div>
+  </div>
+</section>
+
+<section id="t-chars">
+  <div class="card"><h2>캐릭터</h2>
+    <p class="muted">줄을 누르면 오른쪽에 관리 메뉴가 열립니다.</p>
+    <table><thead><tr><th>캐릭터</th><th>계정</th><th>클래스</th><th>레벨</th><th>상태</th><th>위치</th></tr></thead><tbody id="chars"></tbody></table>
+  </div>
+</section>
+
+<section id="t-items">
+  <div class="card"><h2>아이템 찾기</h2>
+    <div class="row"><input id="iq" style="flex:1" placeholder="이름 일부 (예: 집행검, 데스나이트, 물약)" onkeydown="if(event.key==='Enter')items()"><button class="b" onclick="items()">검색</button></div>
+    <p class="muted">지급은 캐릭터가 게임에 접속해 있을 때만 됩니다. 받을 캐릭터를 고르세요:
+      <select id="itarget"></select> 개수 <input id="icount" type="number" value="1" min="1"> 인챈트 <input id="iench" type="number" value="0"></p>
+    <table><thead><tr><th>번호</th><th>이름</th><th>종류</th><th></th></tr></thead><tbody id="items"></tbody></table>
+  </div>
+</section>
+
+<section id="t-npc">
+  <div class="card"><h2>몬스터 · 보스 소환</h2>
+    <div class="row"><input id="nq" style="flex:1" placeholder="몬스터 이름 (예: 데스나이트, 바포메트)" onkeydown="if(event.key==='Enter')npcs()"><button class="b" onclick="npcs()">검색</button><button class="b" onclick="npcs(true)">보스 전체 보기</button></div>
+    <p class="muted">선택한 캐릭터 옆에 소환됩니다: <select id="ntarget"></select> 마릿수 <input id="ncount" type="number" value="1" min="1" max="50"></p>
+    <table><thead><tr><th>번호</th><th>이름</th><th>레벨</th><th>HP</th><th></th></tr></thead><tbody id="npcs"></tbody></table>
+  </div>
+</section>
+
+<section id="t-set">
+  <div class="card"><h2>배율 · 보스 주기</h2>
+    <div id="rates" class="grid"></div>
+    <div class="row" style="margin-top:12px">보스 다시 나오는 주기 <input id="bossmin" type="number" min="1" max="1440"> 분</div>
+    <div class="row" style="margin-top:14px"><button class="b gold" onclick="saveSet()">저장</button><span class="muted">저장 후 [서버 재시작]을 눌러야 적용됩니다.</span></div>
+  </div>
+  <div class="card"><h2>관리자 비밀번호 변경</h2>
+    <div class="row"><input id="newpw" type="password" placeholder="새 비밀번호 (4자 이상)"><button class="b" onclick="chpw()">변경</button></div>
+  </div>
+</section>
+
+<section id="t-bak">
+  <div class="card"><h2>백업</h2>
+    <p class="muted">캐릭터·아이템·계정 전체를 저장합니다. 매일 새벽 4시에도 자동으로 백업되고 14일치를 보관합니다.</p>
+    <button class="b gold" onclick="bakNow()">지금 백업</button>
+    <table style="margin-top:12px"><thead><tr><th>파일</th><th>크기</th><th></th></tr></thead><tbody id="baks"></tbody></table>
+  </div>
+</section>
+</main>
+
+<div class="panel" id="panel">
+  <div class="row" style="justify-content:space-between"><h3 id="p-name"></h3><button class="b" onclick="closeP()">닫기</button></div>
+  <div class="muted" id="p-info"></div>
+
+  <div class="grp"><h4>언제든 가능</h4>
+    <div class="row">
+      <button class="b" onclick="act('gm_on')">GM 지정</button>
+      <button class="b" onclick="act('gm_off')">GM 해제</button>
+      <button class="b" onclick="act('clear_buff')">버프 초기화</button>
+      <button class="b" onclick="act('unstuck')">기란으로 이동</button>
+      <button class="b" onclick="act('quiz_off')">퀴즈 경고 끄기</button>
+      <button class="b" onclick="act('reset_ui')">창 설정 초기화</button>
+      <button class="b" onclick="act('unequip_high')">고인챈트 착용 해제</button>
+      <button class="b red" onclick="act('kick')">접속 끊기</button>
+    </div>
+    <p class="muted">접속이 튕길 때: 버프 초기화 → 창 설정 초기화 → 고인챈트 착용 해제 순서로 눌러보세요.</p>
+  </div>
+
+  <div class="grp"><h4>게임 접속 중일 때</h4>
+    <div class="row" style="margin-bottom:8px"><input id="p-level" type="number" placeholder="1~99"><button class="b" onclick="act('level',{value:v('p-level')})">레벨 설정</button></div>
+    <div class="row" style="margin-bottom:8px"><input id="p-adena" type="number" placeholder="아데나"><button class="b" onclick="act('adena',{value:v('p-adena')})">아데나 지급</button></div>
+    <div class="row" style="margin-bottom:8px">
+      <select id="p-tele">
+        <option value="5">기란</option><option value="11">아덴</option><option value="4">오렌</option><option value="10">말하는 섬</option>
+        <option value="6">켄트 마을</option><option value="7">윈다우드</option><option value="8">하이네</option><option value="9">은기사 마을</option>
+        <option value="2">요정숲</option><option value="12">몽환의 섬</option><option value="13">잊혀진 섬</option><option value="23">해적섬</option>
+        <option value="24">베히모스</option><option value="25">실베리아</option><option value="26">테베 사막</option><option value="33">지옥</option>
+      </select><button class="b" onclick="act('teleport',{value:v('p-tele')})">마을 이동</button>
+    </div>
+    <div class="row" style="margin-bottom:8px">
+      <select id="p-hunt">
+        <option value="1">오만의 탑 10층</option><option value="2">오만 20층</option><option value="3">오만 30층</option><option value="4">오만 40층</option>
+        <option value="5">오만 50층</option><option value="6">오만 60층</option><option value="7">오만 70층</option><option value="8">오만 80층</option>
+        <option value="9">오만 90층</option><option value="10">오만 100층</option><option value="11">상아탑 4층</option><option value="12">상아탑 7층</option>
+        <option value="13">어둠 결계</option><option value="14">암흑 결계</option><option value="15">발라카스</option><option value="16">안타라스</option>
+        <option value="17">파푸리온</option><option value="18">린드비오르</option>
+      </select><button class="b" onclick="act('hunt',{value:v('p-hunt')})">사냥터 이동</button>
+    </div>
+    <div class="row" style="margin-bottom:8px"><select id="p-poly" style="max-width:220px"></select><button class="b" onclick="act('poly',{value:v('p-poly')})">변신</button></div>
+    <div class="row">
+      <button class="b" onclick="act('skills')">모든 스킬 배우기</button>
+      <button class="b" onclick="act('allbuff')">올버프</button>
+      <button class="b" onclick="act('speed')">이동 속도</button>
+    </div>
+  </div>
+</div>
+</div>
+<div id="toast"></div>
+
+<script>
+const TABS=[['home','홈'],['chars','캐릭터'],['items','아이템'],['npc','몬스터·보스'],['set','설정'],['bak','백업']];
+let CUR=null, CHARS=[];
+const $=id=>document.getElementById(id), v=id=>$(id).value;
+function toast(m,err){const t=$('toast');t.textContent=m;t.className=err?'err':'';t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',4000)}
+async function call(p,d){const r=await fetch('/api/'+p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d||{})});
+  const j=await r.json().catch(()=>({error:'응답 오류'})); if(r.status===401&&p!=='login'){showLogin();throw 0}
+  if(!r.ok){toast(j.error||'오류',1);throw 0} if(j.msg)toast(j.msg); return j}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function showLogin(){$('app').style.display='none';$('login').style.display='block';$('pw').focus()}
+async function login(){try{await call('login',{password:v('pw')});$('login').style.display='none';boot()}catch(e){}}
+$('pw').addEventListener('keydown',e=>{if(e.key==='Enter')login()});
+function tab(id){document.querySelectorAll('section').forEach(s=>s.classList.toggle('act',s.id==='t-'+id));
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('act',b.dataset.t===id));
+  if(id==='chars')loadChars(); if(id==='set')loadSet(); if(id==='bak')loadBak(); if(id==='items'||id==='npc')fillTargets()}
+async function status(){try{const s=await call('status');const on=s.server==='active';
+  $('srv').textContent=on?'서버 실행 중':'서버 꺼짐';$('srv').className='pill '+(on?'on':'off');
+  $('s-state').textContent=on?'실행 중':'꺼짐';$('s-online').textContent=s.online.length;$('s-chars').textContent=s.characters;$('s-acc').textContent=s.accounts;
+  $('s-names').textContent=s.online.length?'접속 중: '+s.online.join(', '):'';}catch(e){}}
+async function srv(a){if(a!=='start'&&!confirm(a==='stop'?'서버를 끌까요? 접속자는 저장 후 끊깁니다.':'서버를 재시작할까요?'))return;await call('server',{action:a});setTimeout(status,3000)}
+async function notice(){if(!v('notice'))return;await call('notice',{text:v('notice')});$('notice').value=''}
+async function loadChars(){const j=await call('chars');CHARS=j.chars;$('chars').innerHTML=CHARS.map((c,i)=>
+  `<tr data-i="${i}" class="${CUR===c.name?'sel':''}"><td>${esc(c.name)}</td><td>${esc(c.account)}</td><td>${esc(c.cls)}</td><td>${c.level}</td>
+  <td>${c.online?'<span class="tag on">접속</span> ':''}${c.gm?'<span class="tag g">GM</span>':''}</td><td>${esc(c.map)}</td></tr>`).join('')||'<tr><td colspan=6 class="muted">캐릭터가 없습니다</td></tr>';
+  document.querySelectorAll('#chars tr[data-i]').forEach(r=>r.onclick=()=>openP(CHARS[r.dataset.i]))}
+let POLYS=null;
+async function openP(c){CUR=c.name;$('p-name').textContent=c.name;$('p-info').textContent=`${c.cls} · Lv.${c.level} · ${c.online?'접속 중':'접속 안 함'}${c.gm?' · GM':''} · 계정 ${c.account}`;
+  $('panel').classList.add('open');if(!POLYS){POLYS=(await call('polys')).polys;$('p-poly').innerHTML=POLYS.map(p=>`<option value="${p.id}">${esc(p.name)} (Lv${p.lvl})</option>`).join('')}}
+function closeP(){$('panel').classList.remove('open');CUR=null}
+async function act(a,extra){if(!CUR)return;await call('char_action',Object.assign({name:CUR,action:a},extra||{}));loadChars()}
+async function fillTargets(){const j=await call('chars');const on=j.chars.filter(c=>c.online);
+  const h=on.length?on.map(c=>`<option>${esc(c.name)}</option>`).join(''):'<option value="">접속 중인 캐릭터 없음</option>';$('itarget').innerHTML=h;$('ntarget').innerHTML=h}
+async function items(){const j=await call('items',{q:v('iq')});$('items').innerHTML=j.items.map(i=>
+  `<tr><td>${i.id}</td><td>${esc(i.name)}</td><td>${i.type}</td><td><button class="b" onclick="give(${i.id})">지급</button></td></tr>`).join('')||'<tr><td colspan=4 class="muted">결과 없음</td></tr>'}
+async function give(id){const t=v('itarget');if(!t)return toast('접속 중인 캐릭터가 없습니다',1);
+  await call('char_action',{name:t,action:'item',item_id:id,count:v('icount'),enchant:v('iench')})}
+async function npcs(boss){const j=await call('npcs',boss?{boss:1}:{q:v('nq')});$('npcs').innerHTML=j.npcs.map(n=>
+  `<tr><td>${n.id}</td><td>${esc(n.name)}</td><td>${n.lvl}</td><td>${n.hp}</td><td><button class="b" onclick="spawn(${n.id})">소환</button></td></tr>`).join('')||'<tr><td colspan=5 class="muted">결과 없음</td></tr>'}
+async function spawn(id){const t=v('ntarget');if(!t)return toast('접속 중인 캐릭터가 없습니다',1);await call('char_action',{name:t,action:'spawn',npc_id:id,count:v('ncount')})}
+async function loadSet(){const s=await call('settings');$('rates').innerHTML=s.rates.map(r=>`<label class="stat"><span>${r.label}</span><input data-k="${r.key}" value="${r.value}" style="width:100%;margin-top:6px"></label>`).join('');$('bossmin').value=s.boss_minutes}
+async function saveSet(){const d={boss_minutes:v('bossmin')};document.querySelectorAll('#rates input').forEach(i=>d[i.dataset.k]=i.value);await call('settings_save',d)}
+async function chpw(){await call('password',{new:v('newpw')});$('newpw').value=''}
+async function loadBak(){const j=await call('backups');$('baks').innerHTML=j.backups.map(b=>
+  `<tr><td>${esc(b.name)}</td><td>${(b.size/1048576).toFixed(1)}MB</td><td class="row"><a class="b" style="text-decoration:none" href="/download/${encodeURIComponent(b.name)}">받기</a>
+  <button class="b" onclick="restore('${esc(b.name)}')">복원</button><button class="b red" onclick="delBak('${esc(b.name)}')">삭제</button></td></tr>`).join('')||'<tr><td colspan=3 class="muted">백업 없음</td></tr>'}
+async function bakNow(){toast('백업 중...');await call('backup_now');loadBak()}
+async function restore(n){if(!confirm(n+' 시점으로 되돌릴까요?\n지금 상태는 자동으로 한 번 더 백업됩니다.\n서버가 잠시 꺼졌다 켜집니다.'))return;toast('복원 중... 1~2분 걸립니다');await call('backup_restore',{name:n});loadBak()}
+async function delBak(n){if(!confirm(n+' 백업을 삭제할까요?'))return;await call('backup_delete',{name:n});loadBak()}
+function boot(){$('app').style.display='block';$('nav').innerHTML=TABS.map(([id,n])=>`<button data-t="${id}" onclick="tab('${id}')">${n}</button>`).join('');tab('home');status();setInterval(status,10000)}
+call('status').then(boot).catch(()=>{});
+</script>
+</body>
+</html>

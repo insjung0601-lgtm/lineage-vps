@@ -57,9 +57,24 @@ else
 fi
 
 say "3/7 1인용 설정·패치 적용"
-for f in linfree.jar config/server.properties config/rates.properties data/xml/Cycle/BossCycle.xml; do
+for f in linfree.jar config/server.properties; do
   curl -fsSL -o "$APP/$f" "$REPO_RAW/files/$f"
 done
+# 배율·보스 주기는 처음 한 번만 (이후엔 웹 매니저에서 바꾼 값 유지)
+if [ ! -f "$APP/.solo_configured" ]; then
+  for f in config/rates.properties data/xml/Cycle/BossCycle.xml; do
+    curl -fsSL -o "$APP/$f" "$REPO_RAW/files/$f"
+  done
+  touch "$APP/.solo_configured"
+fi
+mkdir -p "$APP/manager"
+for f in manager.py index.html; do
+  curl -fsSL -o "$APP/manager/$f" "$REPO_RAW/files/manager/$f"
+done
+if [ ! -f "$APP/manager/password.txt" ]; then
+  echo $(( 100000 + RANDOM % 900000 )) > "$APP/manager/password.txt"
+  chmod 600 "$APP/manager/password.txt"
+fi
 mkdir -p "$APP/sql"
 for f in 02_solo_tuning.sql 03_poly_korean.sql; do
   curl -fsSL -o "$APP/sql/$f" "$REPO_RAW/files/sql/$f"
@@ -102,7 +117,7 @@ cat > "$APP/run.sh" <<EOF
 #!/bin/sh
 cd $APP
 exec $JAVA8 -Djava.awt.headless=true -Djavax.accessibility.assistive_technologies=" " -Xms512m -Xmx2048m \\
- -cp "linfree.jar:lib/c3p0-0.9.1.2.jar:lib/mysql-connector-java-5.1.15-bin.jar:lib/javolution-5.5.1.jar:lib/JTattoo.jar:lib/Authentication.jar:lib/mina-core-2.0.7.jar:lib/log4j.jar:lib/jdom.jar" server.Start
+ -cp "linfree.jar:lib/c3p0-0.9.1.2.jar:lib/mysql-connector-java-5.1.15-bin.jar:lib/javolution-5.5.1.jar:lib/JTattoo.jar:lib/Authentication.jar:lib/mina-core-2.0.7.jar:lib/log4j.jar:lib/jdom.jar" solo.Main
 EOF
 chmod +x "$APP/run.sh"
 if [ "$SKIP_SYSTEM" != "1" ]; then
@@ -123,9 +138,33 @@ StandardError=append:$APP/log/console.log
 [Install]
 WantedBy=multi-user.target
 EOF
+  cat > /etc/systemd/system/lineage-manager.service <<EOF
+[Unit]
+Description=Lineage web manager
+After=network-online.target mariadb.service
+
+[Service]
+WorkingDirectory=$APP/manager
+Environment=LINEAGE_APP=$APP
+ExecStart=/usr/bin/python3 $APP/manager/manager.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+  cat > "$APP/backup.sh" <<EOF
+#!/bin/sh
+cd $APP/backups || exit 1
+mysqldump -uroot --default-character-set=utf8 --single-transaction $DB | gzip -c > "\$(date +%Y%m%d_%H%M%S)_자동.sql.gz"
+find $APP/backups -name '*_자동.sql.gz' -mtime +14 -delete
+EOF
+  chmod +x "$APP/backup.sh"
+  echo "0 4 * * * root $APP/backup.sh" > /etc/cron.d/lineage-backup
   systemctl daemon-reload
-  systemctl enable lineage
+  systemctl enable lineage lineage-manager
   systemctl restart lineage
+  systemctl restart lineage-manager
 fi
 
 if [ "$SKIP_SYSTEM" != "1" ]; then
@@ -158,5 +197,8 @@ if [ "$SKIP_SYSTEM" != "1" ]; then
   echo "=========================================="
   echo " 접속기 서버 주소(IP): ${TSIP:-tailscale 로그인 후 다시 확인}"
   echo " 포트: 2000"
+  echo ""
+  echo " 웹 매니저: http://${TSIP:-100.x.x.x}:8080"
+  echo " 매니저 비밀번호: $(cat $APP/manager/password.txt)"
   echo "=========================================="
 fi

@@ -10,6 +10,8 @@ curl -fsSL https://raw.githubusercontent.com/insjung0601-lgtm/lineage-vps/main/i
 - `files/` : 1인용 설정, 패치된 linfree.jar(고인챈트·AC 표시 패치 v4), 보스 리스폰·변신 한글화 SQL
 - 게임 포트(2000)는 Tailscale 네트워크 안에서만 열림
 
+웹 매니저: http://<tailscale IP>:8080 (비밀번호: /opt/lineage/manager/password.txt)
+
 서버 관리
 ```
 systemctl status lineage     # 상태
