@@ -122,12 +122,20 @@ RATE_KEYS = [('RateXp', '경험치 배율'), ('RateDropAdena', '아데나 배율
              ('EnchantChanceWeapon', '무기 인챈트 확률 가산(%p)'), ('EnchantChanceArmor', '방어구 인챈트 확률 가산(%p)'),
              ('EnchantChanceAccessory', '장신구 인챈트 확률 가산(%p)'), ('RateWeightLimit', '무게 한도 배율')]
 
+SOLO_KEYS = [('NpcDamageRate', '몹에게 받는 데미지 % (100=원래, 30=30%만, 0=무적) · 즉시 적용', '30'),
+             ('FullHealPotion', '토끼의 간 완전회복 (1=켜기, 0=끄기) · 즉시 적용', '1')]
+
 def get_settings():
     t = read_props(os.path.join(APP, 'config', 'rates.properties'))
     rates = []
     for k, label in RATE_KEYS:
         m = re.search(r'(?m)^%s\s*=\s*(\S+)' % k, t)
         rates.append({'key': k, 'label': label, 'value': m.group(1) if m else ''})
+    sp = os.path.join(APP, 'config', 'solo.properties')
+    st = open(sp, encoding='utf-8').read() if os.path.isfile(sp) else ''
+    for k, label, default in SOLO_KEYS:
+        m = re.search(r'(?m)^%s\s*=\s*(\S+)' % k, st)
+        rates.append({'key': k, 'label': label, 'value': m.group(1) if m else default})
     bc = open(os.path.join(APP, 'data', 'xml', 'Cycle', 'BossCycle.xml'), encoding='utf-8-sig').read()
     m = re.search(r'Name="SOLO20">\s*<Cycle Period="(\d+)m"', bc)
     return {'rates': rates, 'boss_minutes': int(m.group(1)) if m else 20}
@@ -142,6 +150,18 @@ def save_settings(data):
                 raise RuntimeError('%s 값이 숫자가 아닙니다' % k)
             t = re.sub(r'(?m)^%s\s*=.*$' % k, '%s = %s' % (k, v), t)
     write_props(path, t)
+    sp = os.path.join(APP, 'config', 'solo.properties')
+    st = open(sp, encoding='utf-8').read() if os.path.isfile(sp) else ''
+    for k, _, _ in SOLO_KEYS:
+        if k in data:
+            v = str(data[k]).strip()
+            if not re.fullmatch(r'\d+', v):
+                raise RuntimeError('%s 값이 숫자가 아닙니다' % k)
+            if re.search(r'(?m)^%s\s*=' % k, st):
+                st = re.sub(r'(?m)^%s\s*=.*$' % k, '%s = %s' % (k, v), st)
+            else:
+                st += '\n%s = %s\n' % (k, v)
+    open(sp, 'w', encoding='utf-8').write(st)
     if 'boss_minutes' in data:
         n = int(data['boss_minutes'])
         if n < 1 or n > 1440:

@@ -67,6 +67,7 @@ if [ ! -f "$APP/.solo_configured" ]; then
   done
   touch "$APP/.solo_configured"
 fi
+[ -f "$APP/config/solo.properties" ] || curl -fsSL -o "$APP/config/solo.properties" "$REPO_RAW/files/config/solo.properties"
 mkdir -p "$APP/manager"
 for f in manager.py index.html; do
   curl -fsSL -o "$APP/manager/$f" "$REPO_RAW/files/manager/$f"
@@ -76,7 +77,7 @@ if [ ! -f "$APP/manager/password.txt" ]; then
   chmod 600 "$APP/manager/password.txt"
 fi
 mkdir -p "$APP/sql"
-for f in 02_solo_tuning.sql 03_poly_korean.sql; do
+for f in 02_solo_tuning.sql 03_poly_korean.sql 04_solo_items.sql; do
   curl -fsSL -o "$APP/sql/$f" "$REPO_RAW/files/sql/$f"
 done
 mkdir -p "$APP/log" "$APP/emblem" "$APP/backups"
@@ -111,6 +112,7 @@ else
 fi
 mysql -uroot "$DB" < "$APP/sql/02_solo_tuning.sql"
 mysql -uroot --default-character-set=utf8 "$DB" < "$APP/sql/03_poly_korean.sql"
+mysql -uroot --default-character-set=utf8 "$DB" < "$APP/sql/04_solo_items.sql"
 
 say "5/7 서버 서비스 등록"
 cat > "$APP/run.sh" <<EOF
