@@ -17,11 +17,28 @@ say(){ echo; echo "==== $* ===="; }
 
 say "1/7 패키지 설치 (Java 8, MariaDB)"
 export DEBIAN_FRONTEND=noninteractive
+export NEEDRESTART_MODE=l
+if [ "$SKIP_SYSTEM" != "1" ]; then
+  # 새 VPS 첫 부팅 때 자동 업데이트가 돌면서 DB를 재시작하는 것을 막음
+  systemctl stop unattended-upgrades apt-daily.timer apt-daily-upgrade.timer 2>/dev/null || true
+  for i in $(seq 1 60); do
+    pgrep -f "unattended-upgr|apt-get|dpkg" >/dev/null || break
+    [ "$i" = "1" ] && echo "자동 업데이트가 끝나기를 기다리는 중..."
+    sleep 5
+  done
+fi
 apt-get update -q
 apt-get install -y -q openjdk-8-jre-headless mariadb-server unzip curl ca-certificates
 JAVA8=/usr/lib/jvm/java-8-openjdk-amd64/bin/java
 [ -x "$JAVA8" ] || { echo "Java 8 설치 실패"; exit 1; }
-if [ "$SKIP_SYSTEM" != "1" ]; then systemctl enable --now mariadb; fi
+mkdir -p /etc/mysql/mariadb.conf.d
+cat > /etc/mysql/mariadb.conf.d/99-lineage.cnf <<'EOF2'
+[mysqld]
+max_allowed_packet = 256M
+innodb_buffer_pool_size = 512M
+bind-address = 127.0.0.1
+EOF2
+if [ "$SKIP_SYSTEM" != "1" ]; then systemctl enable mariadb; systemctl restart mariadb; fi
 
 say "2/7 서버 소스 내려받기"
 if [ ! -f "$APP/linfree.jar.orig" ]; then
@@ -54,12 +71,26 @@ mysql -uroot -e "CREATE DATABASE IF NOT EXISTS $DB DEFAULT CHARACTER SET euckr;
 CREATE USER IF NOT EXISTS '$DBUSER'@'localhost' IDENTIFIED BY '$DBPASS';
 CREATE USER IF NOT EXISTS '$DBUSER'@'127.0.0.1' IDENTIFIED BY '$DBPASS';
 GRANT ALL ON $DB.* TO '$DBUSER'@'localhost'; GRANT ALL ON $DB.* TO '$DBUSER'@'127.0.0.1'; FLUSH PRIVILEGES;"
-TBL=$(mysql -uroot -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='$DB'")
-if [ "$TBL" = "0" ]; then
-  echo "게임 데이터 가져오는 중 (1~2분)"
-  mysql -uroot --default-character-set=utf8 "$DB" < "$APP/db/anfro.sql"
+OK=$(mysql -uroot -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='$DB' AND table_name='solo_install_ok'")
+if [ "$OK" = "0" ]; then
+  done_import=0
+  for try in 1 2 3; do
+    echo "게임 데이터 가져오는 중 (1~2분) - 시도 $try"
+    if [ "$SKIP_SYSTEM" != "1" ]; then systemctl start mariadb; fi
+    for i in $(seq 1 30); do mysqladmin -uroot ping >/dev/null 2>&1 && break; sleep 2; done
+    mysql -uroot -e "DROP DATABASE IF EXISTS $DB; CREATE DATABASE $DB DEFAULT CHARACTER SET euckr;
+      GRANT ALL ON $DB.* TO '$DBUSER'@'localhost'; GRANT ALL ON $DB.* TO '$DBUSER'@'127.0.0.1'; FLUSH PRIVILEGES;"
+    if mysql -uroot --default-character-set=utf8 --max-allowed-packet=256M "$DB" < "$APP/db/anfro.sql"; then
+      done_import=1; break
+    fi
+    echo "가져오기 실패 - 10초 후 다시 시도"
+    if [ "$SKIP_SYSTEM" != "1" ]; then journalctl -u mariadb -n 15 --no-pager || true; fi
+    sleep 10
+  done
+  [ "$done_import" = "1" ] || { echo "DB 가져오기 3회 실패. 이 화면을 캡처해서 보내주세요."; exit 1; }
   # 원본 DB에 딸려온 남의 캐릭터/계정 정리
-  mysql -uroot "$DB" -e "DELETE FROM character_items; DELETE FROM characters; DELETE FROM accounts;"
+  mysql -uroot "$DB" -e "DELETE FROM character_items; DELETE FROM characters; DELETE FROM accounts;
+    CREATE TABLE solo_install_ok (done_at DATETIME); INSERT INTO solo_install_ok VALUES (NOW());"
 else
   echo "기존 DB 유지 (캐릭터 보존)"
 fi
