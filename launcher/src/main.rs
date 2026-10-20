@@ -6,6 +6,7 @@
 #![windows_subsystem = "windows"]
 #![cfg_attr(test, allow(unused))]
 
+#[path = "auxm/mod.rs"]
 mod aux;
 mod bot;
 mod config;
