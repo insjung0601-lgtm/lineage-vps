@@ -123,7 +123,8 @@ RATE_KEYS = [('RateXp', '경험치 배율'), ('RateDropAdena', '아데나 배율
              ('EnchantChanceAccessory', '장신구 인챈트 확률 가산(%p)'), ('RateWeightLimit', '무게 한도 배율')]
 
 SOLO_KEYS = [('NpcDamageRate', '몹에게 받는 데미지 % (100=원래, 30=30%만, 0=무적) · 즉시 적용', '30'),
-             ('FullHealPotion', '토끼의 간 완전회복 (1=켜기, 0=끄기) · 즉시 적용', '1')]
+             ('FullHealPotion', '토끼의 간 완전회복 (1=켜기, 0=끄기) · 즉시 적용', '1'),
+             ('OpenCastleGates', '성문 관리인이 항상 성문 열어줌 (1=켜기, 0=끄기) · 즉시 적용', '1')]
 
 def get_settings():
     t = read_props(os.path.join(APP, 'config', 'rates.properties'))
