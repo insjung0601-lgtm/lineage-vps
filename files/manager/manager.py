@@ -124,7 +124,7 @@ RATE_KEYS = [('RateXp', '경험치 배율'), ('RateDropAdena', '아데나 배율
 
 SOLO_KEYS = [('NpcDamageRate', '몹에게 받는 데미지 % (100=원래, 30=30%만, 0=무적) · 즉시 적용', '30'),
              ('FullHealPotion', '토끼의 간 완전회복 (1=켜기, 0=끄기) · 즉시 적용', '1'),
-             ('OpenCastleGates', '성문 관리인이 항상 성문 열어줌 (1=켜기, 0=끄기) · 즉시 적용', '1')]
+             ('OpenCastleGates', 'GM 아닌 캐릭터도 성문 열기 허용 (1=허용, 0=GM만) · 즉시 적용', '0')]
 
 def get_settings():
     t = read_props(os.path.join(APP, 'config', 'rates.properties'))

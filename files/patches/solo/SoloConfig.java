@@ -11,7 +11,7 @@ public final class SoloConfig {
     private static volatile long lastModified = -1;
     private static volatile int npcDamageRate = 100;
     private static volatile boolean fullHealPotion = true;
-    private static volatile boolean openCastleGates = true;
+    private static volatile boolean openCastleGates = false;
 
     private SoloConfig() {}
 
@@ -29,7 +29,7 @@ public final class SoloConfig {
         try { npcDamageRate = Math.max(0, Math.min(1000, Integer.parseInt(p.getProperty("NpcDamageRate", "100").trim()))); } catch (Exception e) { npcDamageRate = 100; }
         String f = p.getProperty("FullHealPotion", "1").trim();
         fullHealPotion = f.equals("1") || f.equalsIgnoreCase("true");
-        String g = p.getProperty("OpenCastleGates", "1").trim();
+        String g = p.getProperty("OpenCastleGates", "0").trim();
         openCastleGates = g.equals("1") || g.equalsIgnoreCase("true");
     }
 
