@@ -294,10 +294,16 @@ def api(path, data):
             return {'msg': '퀴즈 경고를 껐습니다. (다음 접속부터)'}
         if act == 'unstuck':
             if on:
+                before = online_players().get(name, {}).get('map')
                 telnet('gm %s 귀환 5' % name)
-                return {'msg': '기란 마을로 이동시켰습니다.'}
+                time.sleep(1.5)
+                after = online_players().get(name, {}).get('map')
+                if after == '4' or (after and after != before):
+                    return {'msg': '기란 마을로 이동시켰습니다.'}
+                # 이동이 안 먹으면(캐릭터 잠김) 저장 후 접속을 끊고 위치를 바꿈
+                make_offline(name)
             sql('UPDATE characters SET LocX=33442, LocY=32797, MapID=4 WHERE objid=%d' % objid, rows=False)
-            return {'msg': '다음 접속 때 기란 마을에서 시작합니다.'}
+            return {'msg': '접속을 끊었습니다. 다시 접속하면 기란 마을에서 시작합니다.' if on else '다음 접속 때 기란 마을에서 시작합니다.'}
         if act == 'unequip_high':
             was = make_offline(name)
             sql('UPDATE character_items SET is_equipped=0 WHERE char_id=%d AND enchantlvl>127' % objid, rows=False)
