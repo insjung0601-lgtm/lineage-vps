@@ -3,6 +3,8 @@ on:
   push:
     paths: ['launcher/**', 'launcher_dist/**', '.github/workflows/launcher.yml']
   workflow_dispatch:
+permissions:
+  contents: write
 jobs:
   build:
     runs-on: windows-latest
@@ -32,3 +34,14 @@ jobs:
         with:
           name: MyLineage_Launcher
           path: pkg
+      - name: Publish to launcher-build branch
+        shell: pwsh
+        run: |
+          Compress-Archive -Path pkg/* -DestinationPath MyLineage_Launcher.zip -Force
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git checkout --orphan launcher-build
+          git rm -rf --cached . | Out-Null
+          git add -f MyLineage_Launcher.zip
+          git commit -m "launcher build ${{ github.sha }}"
+          git push -f origin launcher-build
