@@ -16,9 +16,13 @@ jobs:
           rustup target add i686-pc-windows-msvc
       - name: Build IME overlay (32-bit DLL)
         working-directory: launcher/ime_overlay
+        env:
+          RUSTFLAGS: "-C target-feature=+crt-static"
         run: cargo build --release --target i686-pc-windows-msvc
       - name: Build launcher
         working-directory: launcher
+        env:
+          RUSTFLAGS: "-C target-feature=+crt-static"
         run: cargo build --release --bin launcher
       - name: Package
         shell: pwsh
